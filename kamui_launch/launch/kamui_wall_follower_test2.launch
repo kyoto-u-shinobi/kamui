@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+
+<launch>
+<!--
+	<node pkg="hokuyo_node" type="hokuyo_node" name="hokuyo_node">
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+-->
+
+	<node pkg="urg_node" type="urg_node" name="urg_node">
+		<param name="ip_address" type="string" value="192.168.0.10"/> 
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+
+	<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_node" name="laserscan_to_pointcloud_node" />
+
+	<node pkg="wall_follower" type="detect_near_wall_node" name="detect_near_wall_node"/> <!--output="screen"/-->
+<!--
+	<node pkg="wall_follower" type="wall_follower_node" name="wall_follower_node" >
+		<param name="right_or_left" type="string" value="left"/>
+	</node>
+-->
+	<node pkg="wall_follower" type="wall_follower_node" name="wall_follower_node" >
+		<param name="vel" type="double" value= "40"/><!--30-->
+		<param name="avel" type="double" value="38"/><!--25-->
+	</node>
+	<param name="wall_follower/right_or_left" type="string" value="right"/>
+
+	<include file="$(find my_dynamixel_tutorial)/b2.launch"/>
+
+	<group ns="gimbal">
+		<node pkg="urg_node" type="urg_node" name="urg_node">
+			<param name="ip_address" type="string" value="192.168.0.20"/> 
+			<param name="frame_id" type="string" value="/gimbal_laser"/>
+		</node>
+<!--
+		<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_gimbal_node" name="laserscan_to_pointcloud_gimbal_node" output="screen" respawn="false"/> 
+-->
+	</group>
+<!--
+	<node pkg="stbee_serial" type="stbee_serial_node" name="stbee_serial_node" output="screen">
+		<param name="modify_delay" type="int" value="2"/> 
+		<param name="modify_angle" type="double" value="0.05"/> 
+	</node>
+-->
+</launch>

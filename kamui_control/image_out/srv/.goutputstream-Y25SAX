@@ -1,0 +1,5 @@
+# sensor_msgs/image image
+string filename
+string directoryname
+int8 savemode
+---

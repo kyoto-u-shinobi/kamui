@@ -1,0 +1,11 @@
+<launch>
+  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+    <param name="video_device" value="/dev/v4l/by-id/usb-KYE_Systems_Corp._USB_Camera_200901010001-video-index0" />
+    <param name="image_width" value="800" /> <!--800-->
+    <param name="image_height" value="600" /> <!--600-->
+    <param name="pixel_format" value="mjpeg" />
+    <param name="camera_frame_id" value="usb_cam" />
+    <param name="io_method" value="mmap"/>
+    <param name="framerate" value="10"/> <!--15-->
+  </node>
+</launch>

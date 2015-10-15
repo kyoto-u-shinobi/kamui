@@ -1,0 +1,183 @@
+/***
+ * Motor Controller
+ */
+
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+#include "std_msgs/Float64.h"
+#include "std_msgs/Int8.h"
+#include "serial/serial.h"
+#include <string>
+#include <iostream>
+#include <cstdio>
+#include <cmath>
+
+#define TX_DATA_SIZE 1 // size of send data
+#define RX_DATA_SIZE 5 // size of receive data
+#define CONTROL_F 100 // rate of sending control input [Hz]
+
+#define PI 3.14159265358979
+
+using std::string;
+using std::exception;
+using std::cout;
+using std::cerr;
+using std::endl;
+
+uint8_t tx_data[TX_DATA_SIZE];
+
+// serial port
+string port("/dev/ttyACM0");
+//string port("/dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_COM_Port_Iÿw_IRH#4_-if00");
+// baudrate
+unsigned long baud = 115200;
+// port, baudrate, no timeout(get the received data at the time)
+serial::Serial my_serial(port, baud, serial::Timeout::simpleTimeout(0));
+
+void pwmCallback(const std_msgs::Int8::ConstPtr& msg)
+{
+	int8_t duty;
+	if(msg->data > 100)
+	{
+		duty = 100;
+	}
+	else if(msg->data < -100)
+	{
+		duty = -100;
+	}
+	else
+	{
+		duty = msg->data;
+	}
+	tx_data[0] = (uint8_t)(duty + 0x7f);
+	my_serial.write(tx_data, TX_DATA_SIZE);
+	ROS_INFO("Send duty = %d", duty);//debug
+}
+
+int main(int argc, char **argv) {
+  ros::init(argc, argv, "stbee_serial_node");
+  ros::NodeHandle n;
+  
+  // Publisher and Subscriber
+  ros::Publisher gimbang_pub = n.advertise<std_msgs::Float64>("gimbal_angle", 10); //[rad]
+  ros::Subscriber pwm_sub = n.subscribe("gimbal_pwm", 1000, pwmCallback);
+
+  cout << "Is the serial port open?";
+  if(my_serial.isOpen())
+    cout << " Yes." << endl;
+  else
+    cout << " No." << endl;
+  
+  // Initialize Buffers
+  // for Transmit
+  tx_data[0] = (uint8_t)0x00;
+  // for Receive
+  uint8_t rx_data[RX_DATA_SIZE*2];
+  memset(rx_data, 0, RX_DATA_SIZE*2);
+  int end = 0;  // this means the number of buffered data
+
+  // Initialize SH2
+  my_serial.write(tx_data, TX_DATA_SIZE);
+
+  //ros::Rate loop_rate(CONTROL_F);
+
+  short count;
+  short sync;
+  std_msgs::Float64 gimbal_angle;
+
+  double t0, t;
+  t0 = ros::Time::now().toSec();
+  
+  cout << "Start" << endl;
+  // Main Loop
+  while(ros::ok())
+  {
+    // Send message to SH2
+    //my_serial.write(tx_data, TX_DATA_SIZE);
+    
+    // Receive message from SH2
+    uint8_t data[RX_DATA_SIZE];
+    int result = my_serial.read(data, RX_DATA_SIZE);  // return value: the number of received data
+    
+    // Buffering
+    int end_pre = end;
+    for(int i = 0; i < result; i++)
+    {
+      if((end_pre + i) > RX_DATA_SIZE*2) break; // overflow
+      rx_data[end_pre + i] = (int8_t)data[i]; // push_back
+      end++;
+    }
+    
+    // Proccess buffered data
+    if((rx_data[0] == 0xff) && (rx_data[1] == 0xff)) // if header data is already top of buffer
+    {
+      if(end >= RX_DATA_SIZE) // if the num of buffered data >= defined value
+      {
+//        // Debug
+//        for(int i = 0; i < RX_DATA_SIZE; i++)
+//        {
+//          cout << i << " : " << (int)rx_data[i] << endl;
+//        }
+        
+        
+        // convert data
+        
+        // Encoder
+        count = (short)(rx_data[2] << 8) + (short)rx_data[3];
+
+		sync = (short)rx_data[4];
+
+        
+        // gimbal angle
+		gimbal_angle.data = (count - 0x7fff) / (128.0*32.0) * 2*PI;
+        
+		t = ros::Time::now().toSec();
+		if(t - t0 > 1.0/CONTROL_F)
+		{
+			//ROS_INFO("%f  %f", t, t0);//debug
+			ROS_INFO("%d %d", count, sync);//debug
+			gimbang_pub.publish(gimbal_angle);
+			t0 = t;
+		}
+
+
+        // shift bufferd data
+        for(int i = 0; i < (end - RX_DATA_SIZE); i++)
+        {
+          rx_data[i] = rx_data[end + i];
+        }
+        end = end - RX_DATA_SIZE;
+      }
+    }
+    else
+    {
+      if(end >= 2)
+      {
+        while((rx_data[0] != 0xff) || (rx_data[1] != 0xff)) // top of buffered data is not header data
+        {
+          for(int i = 1; i < end; i++)
+          {
+            rx_data[i-1] = rx_data[i];
+          }
+          end = end - 1;
+          if(end < 2) break;
+        }
+      }
+    }
+    
+	//ROS_INFO("%d %d", count, sync);//debug
+    ros::spinOnce();
+    
+    //loop_rate.sleep();
+  }
+  
+  // Stop motor
+  tx_data[0] = 0x00;
+  my_serial.write(tx_data, TX_DATA_SIZE);
+
+  ros::Duration(1.0).sleep();
+  
+  cout << "stbee_serial_node End" << endl;
+
+  return 0;
+}

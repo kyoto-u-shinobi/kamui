@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/!svn/ver/427/stacks/can_communication/trunk/can_msgs
+END
+CMakeLists.txt
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/!svn/ver/427/stacks/can_communication/trunk/can_msgs/CMakeLists.txt
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/427/stacks/can_communication/trunk/can_msgs/Makefile
+END
+manifest.xml
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/427/stacks/can_communication/trunk/can_msgs/manifest.xml
+END
+mainpage.dox
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/427/stacks/can_communication/trunk/can_msgs/mainpage.dox
+END

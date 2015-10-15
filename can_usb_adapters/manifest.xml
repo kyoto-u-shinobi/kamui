@@ -1,0 +1,17 @@
+<package>
+  <description brief="can_usb_adapters">
+
+     ROS Package for CAN to USB adapters drivers.
+
+  </description>
+  <author>Gonçalo Cabrita</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/can_usb_adapters</url>
+  <depend package="roscpp"/>
+  <depend package="cereal_port"/>
+  <depend package="can_msgs"/>
+
+</package>
+
+

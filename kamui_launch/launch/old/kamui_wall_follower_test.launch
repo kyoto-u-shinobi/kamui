@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+
+<launch>	
+<!--
+	<node pkg="hokuyo_node" type="hokuyo_node" name="hokuyo_node">
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+-->
+	<node pkg="urg_node" type="urg_node" name="urg_node">
+		<param name="ip_address" type="string" value="192.168.0.10"/> 
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+
+	<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_node" name="laserscan_to_pointcloud_node" />
+
+	<node pkg="wall_follower" type="detect_near_wall_node" name="detect_near_wall_node" />
+<!--
+	<node pkg="wall_follower" type="wall_follower_node" name="wall_follower_node" >
+		<param name="right_or_left" type="string" value="left"/>
+	</node>
+-->
+	<node pkg="wall_follower" type="wall_follower_node" name="wall_follower_node" />
+	<param name="wall_follower/right_or_left" type="string" value="right"/>
+
+	<group ns="optris">
+		<node name="optris_imager_node" pkg="optris_drivers" type="optris_imager_node">
+			<!-- Set configuration file of your camera here! -->
+			<param name="xmlConfig"      type="string" value="$(find optris_drivers)/config/12091003.xml"/>  
+		</node>
+		<node name="optris_colorconvert_node" pkg="optris_drivers" type="optris_colorconvert_node">
+			<param name="palette"        type="int"    value="6"/>     <!-- see ImageBuilder.h for valid values -->
+			<param name="paletteScaling" type="int"    value="2"/>     <!-- scaling method for color conversion, see ImageBuilder.h -->
+			<param name="temperatureMin" type="double" value="35"/>    <!-- set minimum temperature for fixed scaling -->
+			<param name="temperatureMax" type="double" value="45"/>    <!-- set maximum temperature for fixed scaling -->
+				<!-- Uncomment the following line, if you want to use PNG compression. Use rosrun dynamic_reconfigure reconfigure_gui to pick PNG format --> 
+				<!-- <param name="image_transport" type="string" value="compressed"/> -->
+		</node>
+
+		<node pkg="thermo_blob" type="thermo_blob" name="thermo_blob" />
+		<node pkg="thermo_image_conv" type="thermo_image_conv_node" name="thermo_image_conv_node" />
+	</group>
+<!--
+	<node pkg="thermo_scan" type="thermo_scan2" name="thermo_scan2" />
+	<node pkg="thermo_scan" type="detect_victim_pose_node" name="detect_victim_pose_node" output="screen" />
+-->
+
+	<include file="$(find usb_cam)/test.launch"/>
+
+	<include file="$(find my_dynamixel_tutorial)/b2.launch"/>
+
+	<group ns="gimbal">
+		<node pkg="urg_node" type="urg_node" name="urg_node">
+			<param name="ip_address" type="string" value="192.168.0.20"/> 
+			<param name="frame_id" type="string" value="/gimbal_laser"/>
+		</node>
+<!--
+		<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_gimbal_node" name="laserscan_to_pointcloud_gimbal_node" output="screen" respawn="false"/>
+-->
+	</group>
+	<node pkg="stbee_serial" type="stbee_serial_node" name="stbee_serial_node" output="screen"/>
+
+</launch>

@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+
+<launch>
+
+	<!--param name="use_sim_time" type="bool" value="true"/--> 
+
+	<node pkg="can_usb_adapters" type="canusb_node" name="canusb_node" />
+	<node pkg="amu_3002a_lite" type="amu_3002a_lite_node" name="amu_3002a_lite_node" />
+	<node pkg="sh2interface" type="sh2interface_node" name="sh2interface_node" />
+	<node pkg="kamui_control" type="kamui_control_node" name="kamui_control_node" />
+	<node pkg="led_control" type="led_control_node" name="led_control_node" />
+	<node pkg="calc_odometry" type="calc_odometry_node" name="calc_odometry_node" />
+	<node pkg="set_base_velocity" type="set_base_velocity_node" name="set_base_velocity_node" />
+
+	<node pkg="set_state" type="set_state_node" name="set_state_node" />
+
+	<node pkg="robot_tf" type="robot_tf_node" name="robot_tf_node" />
+
+	<node pkg="urg_node" type="urg_node" name="urg_node">
+		<param name="ip_address" type="string" value="192.168.0.10"/> 
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+
+	<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_node" name="laserscan_to_pointcloud_node" />
+
+	<include file="$(find my_dynamixel_tutorial)/b2.launch"/>
+
+	
+	<group ns="optris">
+<!--
+		<node name="optris_imager_node" pkg="optris_drivers" type="optris_imager_node">
+			<param name="xmlConfig"      type="string" value="$(find optris_drivers)/config/12091003.xml"/>  
+		</node>
+		<node name="optris_colorconvert_node" pkg="optris_drivers" type="optris_colorconvert_node">
+			<param name="palette"        type="int"    value="6"/> 
+			<param name="paletteScaling" type="int"    value="2"/> 
+			<param name="temperatureMin" type="double" value="20"/> 
+			<param name="temperatureMax" type="double" value="40"/> 
+		</node>
+-->
+		<node pkg="thermo_image_conv" type="thermo_image_conv_node" name="thermo_image_conv_node" />
+		<node pkg="thermo_blob" type="thermo_blob" name="thermo_blob" />
+
+	</group>
+
+	<node pkg="thermo_scan" type="thermo_scan" name="thermo_scan" />
+
+</launch>

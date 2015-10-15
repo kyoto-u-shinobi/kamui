@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+
+<launch>
+	<node pkg="robot_tf" type="robot_tf_node" name="robot_tf_node" />
+
+	<node pkg="can_usb_adapters" type="canusb_node" name="canusb_node" />
+	<node pkg="amu_3002a_lite" type="amu_3002a_lite_node" name="amu_3002a_lite_node" />
+	<node pkg="sh2interface" type="sh2interface_node" name="sh2interface_node" />
+	<node pkg="kamui_control" type="kamui_control_node" name="kamui_control_node" />
+	<node pkg="led_control" type="led_control_node" name="led_control_node" />
+	<node pkg="calc_odometry" type="calc_odometry_node" name="calc_odometry_node" />
+	
+	<node pkg="set_base_velocity" type="set_base_velocity_node" name="set_base_velocity_node" />	
+
+</launch>

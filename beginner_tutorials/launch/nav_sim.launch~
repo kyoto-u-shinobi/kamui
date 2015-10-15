@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<launch>
+	<!--<node pkg="frontier_thermocam" type="frontier_thermocam_node" name="frontier_thermocam_node" />-->
+
+	<include file="$(find rbx1_bringup)/launch/fake_turtlebot.launch"/>
+	<include file="$(find rbx1_nav)/launch/fake_amcl.launch">
+		<rosparam command="load" param="map" file="$(find rbx1_nav)/maps/test_map.yaml" />
+	</include>
+	
+	<!--param name="move_base/local_costmap/map_topic" type="string" value="nav_map"/-->  
+<!--	<node pkg="rviz" type="rviz" name="rviz" 
+    args="-d $(find rbx1_nav)/amcl.rviz"/>-->
+
+	<node pkg="robot_tf" type="robot_tf_test2" name="robot_tf_test2" />
+	<node pkg="thermo_range" type="thermo_range_node" name="thermo_range_node" >
+		<param name="range" type="double" value="0.6"/>
+		<param name="field_of_view" type="double" value="45"/> 
+	</node>
+	<node pkg="beginner_tutorials" type="talker" name="talker" />
+	<node pkg="generate_navmap" type="generate_navmap_node" name="generate_navmap_node" />
+
+</launch>

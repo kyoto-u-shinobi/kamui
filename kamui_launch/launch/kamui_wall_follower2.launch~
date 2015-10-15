@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+
+<launch>	
+	<node pkg="set_state" type="set_state_node" name="set_state_node" />
+<!--
+	<node pkg="hokuyo_node" type="hokuyo_node" name="hokuyo_node">
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+-->
+	<node pkg="urg_node" type="urg_node" name="urg_node">
+		<param name="ip_address" type="string" value="192.168.0.10"/> 
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+
+	<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_node" name="laserscan_to_pointcloud_node" />
+
+	<node pkg="wall_follower" type="detect_near_wall_node" name="detect_near_wall_node" />
+	<node pkg="wall_follower" type="wall_follower_node2" name="wall_follower_node2"/>
+	<param name="wall_follower_node2/right_or_left" type="string" value="left"/>
+
+	<group ns="optris">
+		<node name="optris_imager_node" pkg="optris_drivers" type="optris_imager_node">
+			<!-- Set configuration file of your camera here! -->
+			<param name="xmlConfig"      type="string" value="$(find optris_drivers)/config/12091003.xml"/>  
+		</node>
+		<node name="optris_colorconvert_node" pkg="optris_drivers" type="optris_colorconvert_node">
+			<param name="palette"        type="int"    value="6"/>     <!-- see ImageBuilder.h for valid values -->
+			<param name="paletteScaling" type="int"    value="2"/>     <!-- scaling method for color conversion, see ImageBuilder.h -->
+			<param name="temperatureMin" type="double" value="35"/>    <!-- set minimum temperature for fixed scaling -->
+			<param name="temperatureMax" type="double" value="45"/>    <!-- set maximum temperature for fixed scaling -->
+				<!-- Uncomment the following line, if you want to use PNG compression. Use rosrun dynamic_reconfigure reconfigure_gui to pick PNG format --> 
+				<!-- <param name="image_transport" type="string" value="compressed"/> -->
+		</node>
+
+		<node pkg="thermo_blob" type="thermo_blob" name="thermo_blob" />
+		<node pkg="thermo_image_conv" type="thermo_image_conv_node" name="thermo_image_conv_node" />
+	</group>
+
+	<node pkg="thermo_scan" type="thermo_scan2" name="thermo_scan2" />
+
+	<node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+		<param name="video_device" value="/dev/v4l/by-id/usb-KYE_Systems_Corp._USB_Camera_200901010001-video-index0" />
+		<param name="image_width" value="1280" />
+		<param name="image_height" value="720" />
+		<param name="pixel_format" value="mjpeg" />
+		<param name="camera_frame_id" value="usb_cam" />
+		<param name="io_method" value="mmap"/>
+	</node>
+
+	<include file="$(find my_dynamixel_tutorial)/b2.launch"/>
+
+</launch>

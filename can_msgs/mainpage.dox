@@ -1,0 +1,7 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+\b can_msgs is a package which collects the common messages used in CAN communication.
+
+*/

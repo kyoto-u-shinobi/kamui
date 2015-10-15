@@ -1,0 +1,15 @@
+<package>
+  <description brief="my_dynamixel_tutorial">
+
+     my_dynamixel_tutorial
+
+  </description>
+  <author>KAMUI</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/my_dynamixel_tutorial</url>
+  <depend package="dynamixel_controllers"/>
+
+</package>
+
+

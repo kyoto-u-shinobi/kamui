@@ -1,0 +1,226 @@
+#include "ros/ros.h"
+#include "tf/message_filter.h"
+#include "message_filters/subscriber.h"
+#include "sensor_msgs/Range.h"
+#include <math.h>
+#include "nav_msgs/OccupancyGrid.h"
+#include "std_msgs/Int8MultiArray.h"
+#include "tf/LinearMath/Vector3.h"
+#include <tf/transform_datatypes.h>
+
+class GenerateNaviMap
+{
+public:
+	GenerateNaviMap() : tf_(),	target_frame_("/map")
+	{
+		point_sub_.subscribe(n_, "range", 100);
+		tf_filter_ = new tf::MessageFilter<sensor_msgs::Range>(point_sub_, tf_, target_frame_, 10);
+		tf_filter_->registerCallback( boost::bind(&GenerateNaviMap::msgCallback, this, _1) );
+		sub_map = n_.subscribe("map", 1000, &GenerateNaviMap::mapCallback, this);
+		pub_map = n_.advertise<nav_msgs::OccupancyGrid>("nav_map", 1000);
+	}
+
+private:
+	message_filters::Subscriber<sensor_msgs::Range> point_sub_;
+	tf::TransformListener tf_;
+	tf::MessageFilter<sensor_msgs::Range> * tf_filter_;
+	ros::NodeHandle n_;
+	std::string target_frame_;
+	
+	ros::Subscriber sub_map;
+	ros::Publisher pub_map;
+	nav_msgs::OccupancyGrid map, pre_map;
+	std_msgs::Int8MultiArray occu_data, is_explored;
+	double yaw;
+
+	// pt0, pt1, pt2の三点で作られる三角形内に点ptがあるかどうかを判定
+	/*
+	// 外積の向きで判定(バグがあるっぽい・・・)
+	bool detectInOutTriangle(geometry_msgs::Point& pt0, geometry_msgs::Point& pt1, \
+							 geometry_msgs::Point& pt2, geometry_msgs::Point& pt)
+	{
+		tf::Vector3 vec_ab(pt1.x - pt0.x, pt1.y - pt0.y, pt1.z - pt0.z);
+		tf::Vector3 vec_bc(pt2.x - pt1.x, pt2.y - pt1.y, pt2.z - pt1.z);
+		tf::Vector3 vec_ca(pt0.x - pt2.x, pt0.y - pt2.y, pt0.z - pt2.z);
+
+		tf::Vector3 vec_bp(pt1.x - pt.x, pt1.y - pt.y, pt1.z - pt.z);
+		tf::Vector3 vec_cp(pt2.x - pt.x, pt2.y - pt.y, pt2.z - pt.z);
+		tf::Vector3 vec_ap(pt0.x - pt.x, pt0.y - pt.y, pt0.z - pt.z);
+
+
+		if(tf::tfDot(tf::tfCross(vec_ab,vec_bp), tf::tfCross(vec_ca,vec_ap)) >= 0 \
+		   && tf::tfDot(tf::tfCross(vec_bc,vec_cp), tf::tfCross(vec_ca,vec_ap)) >= 0)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+
+	}
+	*/
+	// 三角形を一つの辺と一つの点に分けて判定
+	bool detectInOutTriangle(geometry_msgs::Point& pt0, geometry_msgs::Point& pt1, \
+							 geometry_msgs::Point& pt2, geometry_msgs::Point& pt)
+	{
+		if((pt2.x*(pt0.y-pt1.y)+pt2.y*(pt1.x-pt0.x)+pt0.x*pt1.y-pt1.x*pt0.y)* \
+		   (pt.x*(pt0.y-pt1.y) +pt.y*(pt1.x-pt0.x) +pt0.x*pt1.y-pt1.x*pt0.y) < 0)
+		{
+			return false;
+		}
+		else if((pt0.x*(pt1.y-pt2.y)+pt0.y*(pt2.x-pt1.x)+pt1.x*pt2.y-pt2.x*pt1.y)* \
+		        (pt.x*(pt1.y-pt2.y) +pt.y*(pt2.x-pt1.x) +pt1.x*pt2.y-pt2.x*pt1.y) < 0)
+		{
+			return false;
+		}
+		else if((pt1.x*(pt2.y-pt0.y)+pt1.y*(pt0.x-pt2.x)+pt2.x*pt0.y-pt0.x*pt2.y)* \
+		        (pt.x*(pt2.y-pt0.y) +pt.y*(pt0.x-pt2.x) +pt2.x*pt0.y-pt0.x*pt2.y) < 0)
+		{
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	} 
+
+	//	Callback to register with tf::MessageFilter to be called when transforms are available
+	void msgCallback(const boost::shared_ptr<const sensor_msgs::Range>& msg) 
+	{
+		geometry_msgs::Point ptg;
+		double xi, yi;
+		double range = msg->range;
+		double field_of_view = msg->field_of_view;
+		geometry_msgs::PointStamped point_in[3], point_out[3];
+		
+
+		point_in[0].header.frame_id = "/thermocam_link";
+		point_in[0].point.x = 0.0;
+		point_in[0].point.y = 0.0;
+		point_in[0].point.z = 0.0;
+		point_in[1].header.frame_id = "/thermocam_link";
+		point_in[1].point.x = range;
+		point_in[1].point.y = -range*tan(field_of_view/2);
+		point_in[1].point.z = 0.0;
+		point_in[2].header.frame_id = "/thermocam_link";
+		point_in[2].point.x = range;
+		point_in[2].point.y = range*tan(field_of_view/2);
+		point_in[2].point.z = 0.0;
+
+		try 
+		{
+			for(int i = 0; i < 3; i++)
+				tf_.transformPoint(target_frame_, point_in[i], point_out[i]);
+		}
+		catch (tf::TransformException &ex) 
+		{
+			printf ("Failure %s\n", ex.what()); //Print exception which was caught
+		}
+
+		for(int i = 0; i < map.info.width * map.info.height; i++)
+		{
+			//pti.x = map.info.origin.position.x + (i%map.info.width)*map.info.resolution + map.info.resolution/2;
+			//pti.y = map.info.origin.position.y + (i/map.info.width)*map.info.resolution + map.info.resolution/2;
+			//pti.z = 0;
+
+			xi = (i%map.info.width)*map.info.resolution + map.info.resolution/2;
+			yi = (i/map.info.width)*map.info.resolution + map.info.resolution/2;
+			ptg.x = map.info.origin.position.x + xi*cos(yaw) - yi*sin(yaw);
+			ptg.y = map.info.origin.position.y + xi*sin(yaw) + yi*cos(yaw);
+			ptg.z = 0;
+	
+			if(this->detectInOutTriangle(point_out[0].point, point_out[1].point, point_out[2].point, ptg))
+			{
+				map.data[i] = occu_data.data[i];
+				is_explored.data[i] = 1; 
+			}
+		}
+
+		pub_map.publish(map);
+	}
+
+	void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+	{
+		nav_msgs::OccupancyGrid map0;
+		std_msgs::Int8MultiArray is_explored0;
+		double xi, yi, xj, yj, xg, yg;
+		double pre_yaw, yaw0;
+		/*
+		map.header.frame_id = msg->header.frame_id;
+		map.header.stamp = msg->header.stamp;
+
+		map.info.map_load_time = msg->info.map_load_time;
+		map.info.width = msg->info.width;
+		map.info.height = msg->info.height;
+		map.info.resolution = msg->info.resolution;
+		map.info.origin.position.x = msg->info.origin.position.x;
+		map.info.origin.position.y = msg->info.origin.position.y;
+		map.info.origin.position.z = msg->info.origin.position.z;
+		map.info.origin.orientation.x = msg->info.origin.orientation.x;
+		map.info.origin.orientation.y = msg->info.origin.orientation.y;
+		map.info.origin.orientation.z = msg->info.origin.orientation.z;
+		map.info.origin.orientation.w = msg->info.origin.orientation.w;
+		*/
+		pre_map = map;
+		map0 = *msg;
+		//map.header = msg->header;
+		//map.info = msg->info;
+
+		pre_yaw = tf::getYaw(pre_map.info.origin.orientation);
+		yaw0 = tf::getYaw(msg->info.origin.orientation);
+
+		//ROS_INFO("%d %d", map.info.width, map.info.height);//debug
+
+		map0.data.resize(msg->info.width * msg->info.height);
+		occu_data.data.resize(msg->info.width * msg->info.height);
+		is_explored0.data.resize(msg->info.width * msg->info.height);
+		for(int i = 0; i < msg->info.width * msg->info.height; i++)
+		{
+			is_explored0.data[i] = 0;
+
+			xi = (i%msg->info.width)*msg->info.resolution + msg->info.resolution/2;
+			yi = (i/msg->info.width)*msg->info.resolution + msg->info.resolution/2;
+			xg = msg->info.origin.position.x + xi*cos(yaw0) - yi*sin(yaw0);
+			yg = msg->info.origin.position.y + xi*sin(yaw0) + yi*cos(yaw0);
+			xj = (xg - pre_map.info.origin.position.x)*cos(pre_yaw) + (yg - pre_map.info.origin.position.y)*sin(pre_yaw);
+			yj = -(xg - pre_map.info.origin.position.x)*sin(pre_yaw) + (yg - pre_map.info.origin.position.y)*cos(pre_yaw);
+
+			if(xj >= 0 && xj <= pre_map.info.resolution*pre_map.info.width \
+			   && yj >= 0 && yj <= pre_map.info.resolution*pre_map.info.height)
+			{	// 更新前のmapの範囲内のとき
+				unsigned int j;
+				j = (unsigned int)(yj/pre_map.info.resolution)*pre_map.info.width + (unsigned int)(xj/pre_map.info.resolution);
+				if(j < is_explored.data.size() && is_explored.data[j] == 1)	// 探索済みの場合
+				{
+					//map.data[i]
+					occu_data.data[i] = msg->data[i];
+					is_explored0.data[i] = 1;
+				}
+				else	// 未探索の範囲
+				{
+					occu_data.data[i] = msg->data[i];
+					map0.data[i] = -1;	// 未探索データで上書き
+				}
+			}
+			else // 新しく得られたmapの範囲
+			{
+				occu_data.data[i] = msg->data[i];
+				map0.data[i] = -1;	// 未探索データで上書き
+			}
+		}
+		
+		map = map0;
+		is_explored = is_explored0;
+		yaw = yaw0;
+	}
+};
+
+
+
+int main(int argc, char ** argv)
+{
+	ros::init(argc, argv, "generate_navmap_node"); //Init ROS
+	GenerateNaviMap gnm; //Construct class
+	ros::spin(); // Run until interupted
+};

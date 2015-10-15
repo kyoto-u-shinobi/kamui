@@ -1,0 +1,4 @@
+float32[] thermo_msg
+bool blobmsg
+int16 state_msg
+Image thermal_image

@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/kamui/catkin_ws/src/amu_3002a_lite/build/devel/setup.sh

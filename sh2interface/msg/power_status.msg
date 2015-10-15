@@ -1,0 +1,3 @@
+uint8 pc_battery_status
+uint8 emergency_sw_status
+

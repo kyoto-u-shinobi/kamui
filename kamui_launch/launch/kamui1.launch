@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+
+<launch>
+	<include file="$(find kamui_launch)/launch/kamui_motor_test.launch"/>
+	<include file="$(find kamui_launch)/launch/kamui_wall_follower_test1.launch"/>
+	<include file="$(find kamui_launch)/launch/kamui_cameras.launch"/>
+</launch>

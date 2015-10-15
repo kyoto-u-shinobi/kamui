@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/kamui/catkin_ws/src/cereal_port/build/devel/setup.sh

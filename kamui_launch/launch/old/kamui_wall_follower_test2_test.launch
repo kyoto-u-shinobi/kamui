@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+
+<launch>
+	<node pkg="urg_node" type="urg_node" name="urg_node">
+		<param name="ip_address" type="string" value="192.168.0.10"/> 
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+
+
+	<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_node" name="laserscan_to_pointcloud_node" />
+
+	<node pkg="wall_follower" type="detect_near_wall_node" name="detect_near_wall_node"/>
+<!--
+	<node pkg="wall_follower" type="wall_follower_node2" name="wall_follower_node2" >
+		<param name="vel" type="double" value="30"/>
+		<param name="avel" type="double" value="25"/>
+	</node>
+	<param name="wall_follower/right_or_left" type="string" value="right"/>
+-->
+<!--
+	<group ns="optris">
+		<node name="optris_imager_node" pkg="optris_drivers" type="optris_imager_node">
+			<param name="xmlConfig"      type="string" value="$(find optris_drivers)/config/12091003.xml"/>  
+		</node>
+		<node name="optris_colorconvert_node" pkg="optris_drivers" type="optris_colorconvert_node">
+			<param name="palette"        type="int"    value="6"/>
+			<param name="paletteScaling" type="int"    value="2"/>
+			<param name="temperatureMin" type="double" value="35"/>
+			<param name="temperatureMax" type="double" value="45"/> 
+		</node>
+
+		<node pkg="thermo_blob" type="thermo_blob" name="thermo_blob" />
+		<node pkg="thermo_image_conv" type="thermo_image_conv_node" name="thermo_image_conv_node" />
+	</group>
+
+
+	<include file="$(find usb_cam)/test.launch"/>
+
+-->
+	<include file="$(find my_dynamixel_tutorial)/b2.launch"/>
+</launch>

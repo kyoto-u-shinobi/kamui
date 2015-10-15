@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/!svn/ver/428/stacks/can_communication/trunk/can_usb_adapters/src/CANUSB
+END
+CANUSB.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/svn/!svn/ver/428/stacks/can_communication/trunk/can_usb_adapters/src/CANUSB/CANUSB.cpp
+END
+canusb_node.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/!svn/ver/428/stacks/can_communication/trunk/can_usb_adapters/src/CANUSB/canusb_node.cpp
+END
+CANUSB.h
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/svn/!svn/ver/428/stacks/can_communication/trunk/can_usb_adapters/src/CANUSB/CANUSB.h
+END

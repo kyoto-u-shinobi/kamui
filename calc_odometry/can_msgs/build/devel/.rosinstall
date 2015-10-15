@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/kamui/catkin_ws/src/can_msgs/build/devel/setup.sh

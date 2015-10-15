@@ -1,0 +1,245 @@
+#include "ros/ros.h"
+#include <tf/transform_datatypes.h>
+
+//ロボットに関する定数
+#define Rw  0.095					/*! 車輪半径[m] (直径0.19m)*/
+#define T  0.230					/*!トレッド[m]             */
+
+#define CRAWLERFULL  12.0			/*! クローラの構造上の最大回転速度[rad/s]*/
+#define CRAWLERLIMIT 3.0			/*! クローラの制限最大回転速度[rad/s]    */
+
+//オドメトリに関する定数
+#define SETTING_ANGLE_PITCH 1.1		/*! ICのpitch取り付け角[deg]      */
+#define THRESHOLD_PITCH 0.0			/*! 坂と判定するpitch閾値[deg]    */
+
+#define SETTING_ANGLE_ROLL 0.0		/*! ICのroll取り付け角[deg]      */
+#define THRESHOLD_ROLL 0.0			/*! roll角度反映の閾値[deg]　　  */
+
+#define VEL_THRESHOLD 5			/*! 並進速度に関する不感帯 */
+#define AVEL_THRESHOLD 5//19			/*! 角速度に関する不感帯   */
+
+#define ADJUST_F 3.20//1.55				/*! 前進に関するエンコーダの係数 */
+#define ADJUST_B 1.60//0.85//0.901			/*! 後進に関するエンコーダの係数   */
+#define W_ADJUST 3.00				/*! 回転に関する係数             */
+
+#define THRESH_ODD_SENSOR 0.001		/*!	オドメトリとIC3を切り替える閾値[rad]*/
+
+#define PLUSE_PER_ROUND_C 136970.24       /*! クローラのエンコーダのパルス数[pulse/round]  */
+#define PLUSE_PER_ROUND_F 136970.24*5.7	  /*! フリッパーのエンコーダのパルス数[pulse/round]*/
+
+#define SIZE_DRIFT 20
+
+//==================================================================//
+//エンコーダーデータクラス
+//=========------===================================================//
+class EncData{
+public:
+	short e_data[4];	//kamuiでは，0:左フリッパーエンコーダ値,1:右フリッパーエンコーダ値,2：左クローラエンコーダ値,3:右クローラエンコーダ値,
+						//kohga3では，0:左フリッパーポテンショ,1:右フリッパーポテンショ,2：左クローラエンコーダ,3:右クローラエンコーダ値,
+	uint8_t right_id;		//
+	uint8_t left_id;		//
+	uint8_t right_status;	//
+	uint8_t left_status;	//
+
+	//コンストラクタ&デストラクタ
+	EncData(){
+		ros::NodeHandle n;
+		enc_sub = n.subscribe("encoder", 1000, &EncData::encCallback, this);
+		Clear();
+	}
+	~EncData(){}
+	void Clear(void){
+        e_data[0] = 0;
+        e_data[1] = 0;
+        e_data[2] = 0;
+        e_data[3] = 0;
+	}
+	
+	//オペレータのオーバーロード
+	EncData operator=(EncData &e1){
+		e_data[0] = e1.e_data[0];
+		e_data[1] = e1.e_data[1];
+		e_data[2] = e1.e_data[2];
+		e_data[3] = e1.e_data[3];
+		return *this;
+	};
+
+	void encCallback(const sh2interface::encoder::ConstPtr& msg)
+	{
+		e_data[0] = msg->e_data[0];
+		e_data[1] = msg->e_data[1];
+		e_data[2] = msg->e_data[2];
+		e_data[3] = msg->e_data[3];
+	}
+
+protected:
+	ros::Subscriber enc_sub;
+};
+
+//==================================================================//
+//姿勢データクラス
+//=========------===================================================//
+class RotData
+{
+public:
+	ros::NodeHandle n;
+
+	double roll;	//ロール角[rad]
+	double pitch;	//ピッチ角[rad]
+	double yaw;		//ヨー角  [rad]
+
+	RotData(){
+		ros::NodeHandle n;
+		pose_sub = n.subscribe("imu/data", 1000, &RotData::poseCallback, this);
+		Clear();
+	};
+	~RotData(){};
+	
+	virtual void Clear()
+	{
+		roll  = 0.0;
+		pitch = 0.0;
+		yaw   = 0.0;
+	}	
+	RotData operator=(RotData &rot0){
+		roll  = rot0.roll;
+		pitch = rot0.pitch;
+		yaw   = rot0.yaw;
+		return *this;
+	}
+
+	void poseCallback(const sensor_msgs::Imu::ConstPtr& msg)
+	{
+		// amuから姿勢データ受信
+		tf::Quaternion q;
+	
+		tf::quaternionMsgToTF(msg->orientation, q); // Quaternion msgからtf::Quaternionに変換
+		tf::Matrix3x3(q).getRPY(roll, pitch, yaw);	// tf::Quaternionからroll, pitch, yawを取得
+		ROS_DEBUG("RPY = (%lf, %lf, %lf)", roll, pitch, yaw);
+	}
+	
+protected:
+	ros::Subscriber pose_sub;
+};
+
+//==================================================================//
+//位置データクラス
+//=========------===================================================//
+class OrthData
+{
+public:
+	double x;		//x[m]	
+	double y;		//y[m]
+	double z;		//z[m]
+
+	OrthData(){Clear();};
+	~OrthData(){};
+
+	virtual void Clear()
+	{
+		x = 0.0;
+		y = 0.0;
+		z = 0.0;
+	}
+	OrthData operator=(OrthData &orth0){
+		x  = orth0.x;
+		y  = orth0.y;
+		z  = orth0.z;
+		return *this;
+	}
+};
+
+//==================================================================//
+//フリッパー角度データクラス
+//=========------===================================================//
+class FlipperData
+{
+public:
+	double flipperFR;//右フリッパーの角度[rad]
+	double flipperFL;//左フリッパーの角度[rad]
+	double flipperRR;//右フリッパーの角度[rad]
+	double flipperRL;//左フリッパーの角度[rad]
+
+	FlipperData(){Clear();};
+	~FlipperData(){Clear();};
+
+	virtual void Clear()
+	{
+		flipperFR = 0;
+		flipperFL = 0;
+		flipperRR = 0;
+		flipperRL = 0;
+	}
+	FlipperData operator=(FlipperData &fdata)
+	{
+		flipperFR = 0;
+		flipperFL = 0;
+		flipperRR = 0;
+		flipperRL = 0;
+		return *this;
+	}
+};
+
+//==================================================================//
+// PosDataクラス
+//==================================================================//
+class PosData : virtual public OrthData,virtual public RotData,virtual public FlipperData
+{
+public:
+	//コンストラクタ＆デストラクタ
+	PosData(){
+		Clear();
+	}
+	~PosData(){}
+	void Clear(void){
+		OrthData::Clear();
+		RotData::Clear();
+		FlipperData::Clear();
+	}
+
+	//オペレータのオーバーロード
+	PosData operator=(PosData &pos1){
+		x = pos1.x;
+		y = pos1.y;
+		z = pos1.z;
+		roll  = pos1.roll;
+		pitch = pos1.pitch;
+		yaw   = pos1.yaw;
+		flipperFR = pos1.flipperFR;
+		flipperFL = pos1.flipperFL;
+		flipperRR = pos1.flipperRR;
+		flipperRL = pos1.flipperRL;
+		return *this;
+	};
+
+	//2Dでの2点間の距離を返す
+	double CalcDistance(PosData pos0)
+	{
+		return sqrt( pow((x-pos0.x),2.0)+pow((y-pos0.y),2.0)); 
+	}
+	//前のスキャン位置からの角度を返す
+	double CalcRotation(PosData pos0)
+	{
+		return (abs(yaw-pos0.yaw) > (2*3.1416-abs(yaw-pos0.yaw)))?2*3.1416-abs(yaw-pos0.yaw):abs(yaw-pos0.yaw);
+	}
+};
+
+//=======================================================================================================//
+/*! 
+	@class	KAMUI制御用クラス
+*/
+//=======================================================================================================//
+class mykamui
+{
+public:
+	EncData encdata;	 //!< マイコンからの受信データ管理用
+	PosData curpos;		 //!< オドメトリによる現在位置
+
+	//--------------コンストラクタ＆デストラクタ---------------
+	mykamui(){};					//!< デフォルトコンストラクタ
+	~mykamui(){};					//!< デストラクタ
+
+	//------------------------関数-----------------------------
+	//オドメトリ系
+	bool CalcOdometry(void);					//!< オドメトリを計算する
+};

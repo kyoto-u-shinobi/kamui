@@ -1,0 +1,46 @@
+#include "ros/ros.h"
+#include "sensor_msgs/Range.h"
+#include "math.h"
+#include "thermo_blob/blob.h"
+
+//=======================================================================================================//
+//ThermoRangeクラス
+//=======================================================================================================//
+class ThermoRange
+{
+public:
+
+	ThermoRange(){
+		ros::NodeHandle n;
+		sub_blob = n.subscribe("optris/ThermoBlob", 1000, &ThermoRange::thermoCallback, this);
+		pub_range = n.advertise<sensor_msgs::Range>("range", 1000);
+	}
+	
+	~ThermoRange(){};
+
+	void thermoCallback(const std_msgs::Bool::ConstPtr& msg)	// 熱画像処理が行われたタイミングでrangeデータ配信
+	{
+		range.header.frame_id = "/thermocam_link";
+		range.field_of_view = 45*M_PI/180;
+		range.min_range = 1.0;
+		range.max_range = 20.0;
+		range.range = 1.0;
+		
+		ROS_INFO("ThermoBlob!");//debug
+		pub_range.publish(range);
+	}
+
+private:
+	ros::Subscriber sub_blob;
+	ros::Publisher pub_range;
+	sensor_msgs::Range range;
+};
+
+int main(int argc, char **argv)
+{
+	ros::init(argc, argv, "thermo_range_node");
+
+	ThermoRange thr;
+
+	ros::spin();
+}

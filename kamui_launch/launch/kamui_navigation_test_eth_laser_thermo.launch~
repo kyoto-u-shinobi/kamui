@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+
+<launch>
+
+	<!--param name="use_sim_time" type="bool" value="true"/--> 
+
+	<node pkg="can_usb_adapters" type="canusb_node" name="canusb_node" />
+	<node pkg="amu_3002a_lite" type="amu_3002a_lite_node" name="amu_3002a_lite_node" />
+	<node pkg="sh2interface" type="sh2interface_node" name="sh2interface_node" />
+	<node pkg="kamui_control" type="kamui_control_node" name="kamui_control_node" />
+	<node pkg="led_control" type="led_control_node" name="led_control_node" />
+	<node pkg="calc_odometry" type="calc_odometry_node" name="calc_odometry_node" />
+	<node pkg="set_base_velocity" type="set_base_velocity_node" name="set_base_velocity_node" />
+
+	<node pkg="set_state" type="set_state_node" name="set_state_node"  output="screen" />
+
+	<node pkg="robot_tf" type="robot_tf_node" name="robot_tf_node" />
+<!--
+	<node pkg="hokuyo_node" type="hokuyo_node" name="hokuyo_node">
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+-->
+	<node pkg="urg_node" type="urg_node" name="urg_node">
+		<param name="ip_address" type="string" value="192.168.0.10"/> 
+		<param name="frame_id" type="string" value="/laser_link"/>  
+	</node>
+
+	<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_node" name="laserscan_to_pointcloud_node" />
+
+	<include file="$(find my_dynamixel_tutorial)/b2.launch"/>
+
+	<!--node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" /-->
+
+<!--
+	<node pkg="amcl" type="amcl" name="amcl" output="screen">
+		<param name="use_map_topic" value="true"/>
+	</node>
+-->
+	<!-- Run fake localization compatible with AMCL output -->
+	<node pkg="fake_localization" type="fake_localization" name="fake_localization" output="screen" />
+	<!-- For fake localization we need static transform between /odom and /map -->
+	<node pkg="tf" type="static_transform_publisher" name="map_odom_broadcaster" args="0 0 0 0 0 0 /map /odom 100" />
+
+	<node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    	<rosparam file="$(find kamui_launch)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    	<rosparam file="$(find kamui_launch)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    	<rosparam file="$(find kamui_launch)/config/local_costmap_params.yaml" command="load" />
+    	<rosparam file="$(find kamui_launch)/config/global_costmap_params.yaml" command="load" />
+    	<rosparam file="$(find kamui_launch)/config/base_local_planner_params.yaml" command="load" />
+	</node>
+
+<!--
+	<node pkg="generate_navmap" type="generate_navmap_node" name="generate_navmap_node" />
+-->
+	<group ns="optris">
+		<node name="optris_imager_node" pkg="optris_drivers" type="optris_imager_node">
+			<!-- Set configuration file of your camera here! -->
+			<param name="xmlConfig"      type="string" value="$(find optris_drivers)/config/12091003.xml"/>  
+		</node>
+		<node name="optris_colorconvert_node" pkg="optris_drivers" type="optris_colorconvert_node">
+			<param name="palette"        type="int"    value="6"/>     <!-- see ImageBuilder.h for valid values -->
+			<param name="paletteScaling" type="int"    value="2"/>     <!-- scaling method for color conversion, see ImageBuilder.h -->
+			<param name="temperatureMin" type="double" value="20"/>    <!-- set minimum temperature for fixed scaling -->
+			<param name="temperatureMax" type="double" value="40"/>    <!-- set maximum temperature for fixed scaling -->
+				<!-- Uncomment the following line, if you want to use PNG compression. Use rosrun dynamic_reconfigure reconfigure_gui to pick PNG format --> 
+				<!-- <param name="image_transport" type="string" value="compressed"/> -->
+		</node>
+
+		<node pkg="thermo_image_conv" type="thermo_image_conv_node" name="thermo_image_conv_node" />
+		<node pkg="thermo_blob" type="thermo_blob" name="thermo_blob" />
+
+	</group>
+<!--
+	<node pkg="thermo_range" type="thermo_range_node" name="thermo_range_node" >
+		<param name="range" type="double" value="0.6"/>
+		<param name="field_of_view" type="double" value="45"/> 
+	</node>
+-->
+	<node pkg="thermo_scan" type="thermo_scan2" name="thermo_scan2" />
+
+</launch>
